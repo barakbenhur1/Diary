@@ -51,8 +51,8 @@ struct ContentView: View {
         Button(action: {
             withAnimation(.linear(duration: 0.4)) {
                 state.toggle()
+                openEntry = false
             }
-            openEntry = false
             entryView = nil
             text = ""
             buttonNmae = state ? "magnifyingglass" : "pencil"
@@ -82,15 +82,22 @@ struct ContentView: View {
             filter(value: value)
         }
         
-        TextField(placeHolder, text: binding)
-            .padding(12)
-            .disabled(state)
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(!state ? Color.gray : Color.clear, lineWidth: 0.5)
-            )
-            .multilineTextAlignment(state ? .center : .leading)
-            .animation(.easeIn, value: state)
+        TextField(
+            "",
+            text: binding,
+            prompt: Text(placeHolder)
+                .foregroundStyle(state ? .black.opacity(0.6) : .gray)
+                .font(.system(size: state ? 24 : 18))
+        )
+        .padding(12)
+        .disabled(state)
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(!state ? Color.gray : Color.clear, lineWidth: 0.5)
+        )
+        .multilineTextAlignment(state ? .center : .leading)
+        .animation(.snappy, value: state)
+        .underline(state ,color: .black.opacity(0.6))
     }
     
     @ViewBuilder
@@ -186,9 +193,9 @@ struct ContentView: View {
             VStack {
                 enrtriesPager
                     .padding(.top, 10)
-                    .padding(.bottom, 12)
+                    .padding(.bottom, 20)
                     .padding(.leading, 2)
-                    .padding(.trailing, 15)
+                    .padding(.trailing, 20)
                     .onAppear(
                         perform: {
                             enrtriesPager
@@ -209,6 +216,7 @@ struct ContentView: View {
                         save()
                     }, label: {
                         Text("Save")
+                            .frame(maxWidth: .infinity)
                     })
                     .frame(maxWidth: 400)
                     .frame(maxHeight: 50)
@@ -235,22 +243,49 @@ struct ContentView: View {
             }
             
             var body: some View {
-                TabView(selection: $current) {
-                    ForEach(entries, id: \.self) { entry in
-                        let ev = entryView(isNew: isNew, entry: entry)
-                        
-                        ev.startTracking { text in
-                            track(text)
-                        }
-                        .tag(entries.firstIndex(of: entry)!)
-                        .onAppear(
-                            perform: {
-                                setCurrentView(ev)
+                GeometryReader {
+                    let rect = $0.frame(in: .global)
+                    let minX = (rect.minX - 50) < 0 ? (rect.minX - 50) : -(rect.minX - 50)
+                    let progress = (minX) / rect.width
+                    
+                    TabView(selection: $current) {
+                        ForEach(entries, id: \.self) { entry in
+                            let ev = entryView(isNew: isNew, entry: entry)
+                            
+                            ev.startTracking { text in
+                                track(text)
                             }
-                        )
+                            .tag(entries.firstIndex(of: entry)!)
+                            .onAppear(
+                                perform: {
+                                    setCurrentView(ev)
+                                }
+                            )
+                            .rotation3DEffect(
+                                .init(degrees: -2), axis: (x:0, y: 1, z: 0), anchor: .leading, perspective: 1)
+                            .modifier(CustomProjection(value: 1+(-progress < 1 ? progress : -1.0)))
+                        }
                     }
+                    .tabViewStyle(.page(indexDisplayMode: isNew ? .never : .always))
                 }
-                .tabViewStyle(.page(indexDisplayMode: isNew ? .never : .always))
+            }
+        }
+        
+        struct CustomProjection: GeometryEffect{
+            var value: CGFloat
+            
+            var animatableData: CGFloat{
+                get{
+                    return value
+                }
+                set{
+                    value = newValue
+                }
+            }
+            func effectValue(size: CGSize) -> ProjectionTransform {
+                var transform = CATransform3DIdentity
+                transform.m11 = (value == 0 ? 0.0001 : value)
+                return .init(transform)
             }
         }
         
