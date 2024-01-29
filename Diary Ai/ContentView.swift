@@ -250,7 +250,7 @@ struct ContentView: View {
                         )
                     }
                 }
-                .tabViewStyle(.page(indexDisplayMode: .always))
+                .tabViewStyle(.page(indexDisplayMode: isNew ? .never : .always))
             }
         }
         
