@@ -23,9 +23,9 @@ struct ContentView: View {
     @State private var state: Bool = false
     @State private var openEntry: Bool = false
     @State private var entryView: diaryView?
-    
-    @State private var transcribed: String? = ""
     @State private var originalText: String = ""
+    
+    @State private var currentView: diaryView.entryView?
     
     var body: some View {
         VStack(alignment: .leading, content: {
@@ -34,25 +34,24 @@ struct ContentView: View {
                 Spacer()
                 SwiftSpeech.RecordButton()
                     .swiftSpeechRecordOnHold(locale: .current)
-                    .onRecognizeLatest(update: { string in
+                    .onRecognizeLatest(update: { transcribed in
                         if state {
-                            transcribed = string
+                            currentView?.set(transcribed)
                         }
                         else {
-                            text = originalText + string
+                            text = originalText + transcribed
+                            filter(value: text)
                         }
-                    })
-                    .onStopRecording(appendAction: { session in
-                        transcribed = nil
                     })
                     .opacity(openEntry ? 0 : 1)
                     .animation(.easeIn, value: openEntry)
             }
+            .padding(.bottom, 10)
             ThoughtsTextField
             animatbleView
         })
         .padding(.all, 20)
-        .background(.teal.opacity(0.4))
+        .background(.teal.opacity(0.6))
         .onAppear(perform: {
             itemsToShow = items.filter { _ in return true }
             SwiftSpeech.requestSpeechRecognitionAuthorization()
@@ -78,7 +77,6 @@ struct ContentView: View {
             }
             entryView = nil
             text = ""
-            transcribed = nil
             originalText = ""
             buttonNmae = state ? "magnifyingglass" : "pencil"
             placeHolder = state ? "write your thoughts!!" : "search entry"
@@ -89,13 +87,14 @@ struct ContentView: View {
                 .foregroundColor(.black)
                 .animation(.easeIn, value: state)
         })
-        .frame(maxHeight: 50)
-        .frame(minWidth: 50)
+        .frame(maxHeight: 76)
+        .frame(minWidth: 76)
         .overlay(
-            RoundedRectangle(cornerRadius: 25)
+            RoundedRectangle(cornerRadius: 38)
                 .stroke(.black, lineWidth: 0.5)
         )
         .padding(.bottom, 20)
+        .padding(.top, 10)
     }
     
     @ViewBuilder
@@ -149,7 +148,9 @@ struct ContentView: View {
             }
         }
         else if state {
-            diaryView(transcribed: transcribed) {
+            diaryView { current in
+                currentView = current
+            } dismiss: {
                 withAnimation(.linear(duration: 0.4)) {
                     state = false
                 }
@@ -185,6 +186,8 @@ struct ContentView: View {
         @State private var disabled: Bool
         @State private var enrtriesPager: enrtriesView
         @State private var currentView: entryView?
+        
+        private var setCurrentView: (entryView) -> () = { _ in }
 
         private let showSave: Bool
         
@@ -206,13 +209,14 @@ struct ContentView: View {
             _enrtriesPager = State(wrappedValue: enrtriesView(current: current, entries: entries, isNew: false))
         }
         
-        init(transcribed: String?, dismiss: @escaping () -> ()) {
+        init(currentBlock: @escaping (entryView) -> (), dismiss: @escaping () -> ()) {
             showSave = true
             let selected = Entry(time:  Date.now, text: "", feel: "")
             save = dismiss
+            setCurrentView = currentBlock
             _disabled = State(initialValue: true)
             
-            _enrtriesPager = State(wrappedValue: enrtriesView(current: 0, text: transcribed, entries: [selected], isNew: true))
+            _enrtriesPager = State(wrappedValue: enrtriesView(current: 0, entries: [selected], isNew: true))
         }
         
         var body: some View {
@@ -229,6 +233,7 @@ struct ContentView: View {
                                     disabled = text.isEmpty
                                 } currentBlock: { current in
                                     currentView = current
+                                    setCurrentView(current)
                                 }
                             
                         })
@@ -257,7 +262,6 @@ struct ContentView: View {
         
         struct enrtriesView: View {
             @State var current: Int
-            @State var text: String? = nil
            
             @State var entries: [Entry] = []
             let isNew: Bool
@@ -283,7 +287,6 @@ struct ContentView: View {
                             ev.startTracking { text in
                                 track(text)
                             }
-                            .set(text)
                             .tag(entries.firstIndex(of: entry)!)
                             .onAppear(
                                 perform: {
@@ -325,13 +328,13 @@ struct ContentView: View {
             let isNew: Bool
             let entry: Entry
             
-            var original = ""
+            var startTracking: (String) -> () = { _ in }
             
             let feels: [String] = ["😀", "😞", "😭", "😡", "😨"]
             
             mutating func startTracking(block: @escaping (String) -> ()) -> entryView  {
                 textView.text = entry.text
-                original = entry.text
+                startTracking = block
                 textView
                     .setUpdateUIView { text in
                         block(text)
@@ -344,10 +347,10 @@ struct ContentView: View {
                 PersistenceController.shared.save(text: textView.text, feel: textView.feel, date: entry.time)
             }
             
-            func set(_ text: String?) -> entryView {
-                guard let text else { return self }
-                textView.text = original + text
-                return self
+            func set(_ text: String?) {
+                guard let text else { return }
+                textView.text = textView.original + text
+                startTracking(textView.text)
             }
             
             var body: some View {
@@ -469,6 +472,10 @@ struct ContentView: View {
             set {
                 textView.set(string: newValue)
             }
+        }
+        
+        var original: String {
+            return textView.original
         }
         
         func makeUIView(context: Context) -> UITextView {

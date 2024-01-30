@@ -13,6 +13,8 @@ class MyTextView: UITextView {
     
     var feel = ""
     
+    var original = ""
+    
     private var textViewDidChange: (String) -> () = { text in }
     
     init(placeHolder: String) {
@@ -59,6 +61,7 @@ class MyTextView: UITextView {
 extension MyTextView: UITextViewDelegate {
     func textViewDidChange(_ textView: UITextView) {
         ph.isHidden = !textView.text.isEmpty
+        original = textView.text
         textViewDidChange(textView.text)
     }
 }
