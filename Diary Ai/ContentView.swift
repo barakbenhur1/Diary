@@ -9,6 +9,7 @@ import SwiftUI
 import ARKit
 import CoreData
 import Foundation
+import SwiftSpeech
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) var managedObjectContext
@@ -23,16 +24,38 @@ struct ContentView: View {
     @State private var openEntry: Bool = false
     @State private var entryView: diaryView?
     
+    @State private var transcribed: String? = ""
+    @State private var originalText: String = ""
+    
     var body: some View {
         VStack(alignment: .leading, content: {
-            stateButton
+            HStack {
+                stateButton
+                Spacer()
+                SwiftSpeech.RecordButton()
+                    .swiftSpeechRecordOnHold(locale: .current)
+                    .onRecognizeLatest(update: { string in
+                        if state {
+                            transcribed = string
+                        }
+                        else {
+                            text = originalText + string
+                        }
+                    })
+                    .onStopRecording(appendAction: { session in
+                        transcribed = nil
+                    })
+                    .opacity(openEntry ? 0 : 1)
+                    .animation(.easeIn, value: openEntry)
+            }
             ThoughtsTextField
             animatbleView
         })
         .padding(.all, 20)
-        .background(.teal.opacity(0.2))
+        .background(.teal.opacity(0.4))
         .onAppear(perform: {
             itemsToShow = items.filter { _ in return true }
+            SwiftSpeech.requestSpeechRecognitionAuthorization()
         })
     }
     
@@ -55,6 +78,8 @@ struct ContentView: View {
             }
             entryView = nil
             text = ""
+            transcribed = nil
+            originalText = ""
             buttonNmae = state ? "magnifyingglass" : "pencil"
             placeHolder = state ? "write your thoughts!!" : "search entry"
             
@@ -79,9 +104,10 @@ struct ContentView: View {
             return text
         } set: { value in
             text = value
+            originalText = value
             filter(value: value)
         }
-        
+    
         TextField(
             "",
             text: binding,
@@ -123,7 +149,7 @@ struct ContentView: View {
             }
         }
         else if state {
-            diaryView {
+            diaryView(transcribed: transcribed) {
                 withAnimation(.linear(duration: 0.4)) {
                     state = false
                 }
@@ -159,7 +185,7 @@ struct ContentView: View {
         @State private var disabled: Bool
         @State private var enrtriesPager: enrtriesView
         @State private var currentView: entryView?
-        
+
         private let showSave: Bool
         
         private var save: () -> ()
@@ -180,13 +206,13 @@ struct ContentView: View {
             _enrtriesPager = State(wrappedValue: enrtriesView(current: current, entries: entries, isNew: false))
         }
         
-        init(dismiss: @escaping () -> ()) {
+        init(transcribed: String?, dismiss: @escaping () -> ()) {
             showSave = true
             let selected = Entry(time:  Date.now, text: "", feel: "")
             save = dismiss
             _disabled = State(initialValue: true)
             
-            _enrtriesPager = State(wrappedValue: enrtriesView(current: 0, entries: [selected], isNew: true))
+            _enrtriesPager = State(wrappedValue: enrtriesView(current: 0, text: transcribed, entries: [selected], isNew: true))
         }
         
         var body: some View {
@@ -231,7 +257,9 @@ struct ContentView: View {
         
         struct enrtriesView: View {
             @State var current: Int
-            let entries: [Entry]
+            @State var text: String? = nil
+           
+            @State var entries: [Entry] = []
             let isNew: Bool
             
             var track: (String) -> () = { _ in }
@@ -250,11 +278,12 @@ struct ContentView: View {
                     
                     TabView(selection: $current) {
                         ForEach(entries, id: \.self) { entry in
-                            let ev = entryView(isNew: isNew, entry: entry)
+                            var ev = entryView(isNew: isNew, entry: entry)
                             
                             ev.startTracking { text in
                                 track(text)
                             }
+                            .set(text)
                             .tag(entries.firstIndex(of: entry)!)
                             .onAppear(
                                 perform: {
@@ -296,10 +325,13 @@ struct ContentView: View {
             let isNew: Bool
             let entry: Entry
             
+            var original = ""
+            
             let feels: [String] = ["😀", "😞", "😭", "😡", "😨"]
             
-            func startTracking(block: @escaping (String) -> ()) -> entryView  {
-                textView.set(text: entry.text)
+            mutating func startTracking(block: @escaping (String) -> ()) -> entryView  {
+                textView.text = entry.text
+                original = entry.text
                 textView
                     .setUpdateUIView { text in
                         block(text)
@@ -310,6 +342,12 @@ struct ContentView: View {
             
             func save() {
                 PersistenceController.shared.save(text: textView.text, feel: textView.feel, date: entry.time)
+            }
+            
+            func set(_ text: String?) -> entryView {
+                guard let text else { return self }
+                textView.text = original + text
+                return self
             }
             
             var body: some View {
@@ -325,6 +363,7 @@ struct ContentView: View {
                     HStack {
                         Text("How \(isNew ? "do" : "did") you feel?")
                             .multilineTextAlignment(.leading)
+                            .foregroundStyle(.black)
                             .lineLimit(1)
                             .font(.system(size: 13.2))
                             .bold()
@@ -424,10 +463,16 @@ struct ContentView: View {
         }
         
         var text: String {
-            return textView.text
+            get {
+                return textView.text
+            }
+            set {
+                textView.set(string: newValue)
+            }
         }
         
         func makeUIView(context: Context) -> UITextView {
+            textView.textColor = .black
             return textView
         }
         
@@ -436,10 +481,6 @@ struct ContentView: View {
                 .textViewDidChange { text in
                     updateUIView(text)
                 }
-        }
-        
-        func set(text: String) {
-            textView.set(string: text)
         }
         
         func editable(_ value: Bool) -> TextView {

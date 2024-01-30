@@ -7,6 +7,7 @@ target 'Diary Ai' do
 
   # Pods for Diary Ai
   pod 'SnapKit', '~> 5.6.0'
+  pod 'SwiftSpeech'
 
   target 'Diary AiTests' do
     inherit! :search_paths

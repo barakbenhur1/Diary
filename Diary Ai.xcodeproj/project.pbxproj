@@ -137,13 +137,13 @@
 				4F5F67432B66F2C700034375 /* Diary_AiApp.swift */,
 				4F5F67452B66F2C700034375 /* ContentView.swift */,
 				4F5F67762B66F41500034375 /* MyTextView.swift */,
+				4F3598832B67E90700A37064 /* Entry.swift */,
 				4F5F67472B66F2CA00034375 /* Assets.xcassets */,
 				4F5F674C2B66F2CA00034375 /* Persistence.swift */,
 				4F5F67512B66F2CA00034375 /* Diary_Ai.entitlements */,
 				4F5F67522B66F2CA00034375 /* Info.plist */,
 				4F5F674E2B66F2CA00034375 /* Diary_Ai.xcdatamodeld */,
 				4F5F67492B66F2CA00034375 /* Preview Content */,
-				4F3598832B67E90700A37064 /* Entry.swift */,
 			);
 			path = "Diary Ai";
 			sourceTree = "<group>";

@@ -1,16 +1,20 @@
 PODS:
   - SnapKit (5.6.0)
+  - SwiftSpeech (0.9.3)
 
 DEPENDENCIES:
   - SnapKit (~> 5.6.0)
+  - SwiftSpeech
 
 SPEC REPOS:
   trunk:
     - SnapKit
+    - SwiftSpeech
 
 SPEC CHECKSUMS:
   SnapKit: e01d52ebb8ddbc333eefe2132acf85c8227d9c25
+  SwiftSpeech: f49b1dc8d841295ed3fd2e91233a607f45bfa529
 
-PODFILE CHECKSUM: dda4219589727b0498d16a3723f8b0e9e0c3f167
+PODFILE CHECKSUM: 0df34ffb4bc24e1cf2577d4f4c5d32aa787a2070
 
 COCOAPODS: 1.14.3
