@@ -22,6 +22,9 @@ class MyTextView: UITextView {
         
         delegate = self
         
+        showsVerticalScrollIndicator = false
+        showsHorizontalScrollIndicator = false
+        
         backgroundColor = .clear
         
         ph.backgroundColor = .clear

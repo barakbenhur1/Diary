@@ -23,7 +23,10 @@ struct ContentView: View {
     @State private var state: Bool = false
     @State private var openEntry: Bool = false
     @State private var entryView: diaryView?
-    @State private var originalText: String = ""
+    @State private var textFieldHelper: TextFieldHelper = TextFieldHelper()
+    @State private var stopRecording: Bool = false
+    
+    @FocusState private var openKeboard: Bool
     
     @State private var currentView: diaryView.entryView?
     
@@ -34,24 +37,58 @@ struct ContentView: View {
                 Spacer()
                 SwiftSpeech.RecordButton()
                     .swiftSpeechRecordOnHold(locale: .current)
+                    .onStartRecording(appendAction: { _ in
+                        if !state {
+                            textFieldHelper.original = text
+                        }
+                    })
                     .onRecognizeLatest(update: { transcribed in
+                        let transcribed  =  {
+                            guard let first = transcribed.first else {
+                                return ""
+                            }
+                            
+                            return transcribed.lowercased()
+                                .replacingCharacters(in: ...transcribed.startIndex, with: "\(first)")
+                        }()
+                        
+                        openKeboard = true
+                        guard !stopRecording else {
+                            stopRecording = false
+                            return
+                        }
                         if state {
                             currentView?.set(transcribed)
+                            currentView?.isFirstResponder(true)
                         }
                         else {
-                            text = originalText + transcribed
+                            let transcribed  = textFieldHelper.original.isEmpty ? transcribed : transcribed.lowercased()
+                            text = textFieldHelper.original + transcribed
                             filter(value: text)
+                        }
+                    })
+                    .onStopRecording(appendAction: { _ in
+                        stopRecording = true
+                        if state {
+                            currentView?.setOrignal()
+                        }
+                        else {
+                            textFieldHelper.original = text
                         }
                     })
                     .opacity(openEntry ? 0 : 1)
                     .animation(.easeIn, value: openEntry)
             }
-            .padding(.bottom, 10)
             ThoughtsTextField
             animatbleView
         })
         .padding(.all, 20)
+        .padding(.bottom, 20)
         .background(.teal.opacity(0.6))
+        .onTapGesture {
+            openKeboard = false
+            currentView?.isFirstResponder(false)
+        }
         .onAppear(perform: {
             itemsToShow = items.filter { _ in return true }
             SwiftSpeech.requestSpeechRecognitionAuthorization()
@@ -68,33 +105,46 @@ struct ContentView: View {
         }
     }
     
+    struct ScaleButtonStyle: ButtonStyle {
+        func makeBody(configuration: Self.Configuration) -> some View {
+            configuration.label
+                .scaleEffect(configuration.isPressed ? 1.1 : 1)
+        }
+    }
+
     @ViewBuilder
     var stateButton: some View {
-        Button(action: {
-            withAnimation(.linear(duration: 0.4)) {
-                state.toggle()
-                openEntry = false
-            }
-            entryView = nil
-            text = ""
-            originalText = ""
-            buttonNmae = state ? "magnifyingglass" : "pencil"
-            placeHolder = state ? "write your thoughts!!" : "search entry"
-            
-        }, label: {
-            Image(systemName: buttonNmae)
-                .scaledToFit()
-                .foregroundColor(.black)
-                .animation(.easeIn, value: state)
-        })
-        .frame(maxHeight: 76)
-        .frame(minWidth: 76)
-        .overlay(
-            RoundedRectangle(cornerRadius: 38)
-                .stroke(.black, lineWidth: 0.5)
-        )
+        ZStack {
+            Button(action: {
+                withAnimation(.linear(duration: 0.4)) {
+                    state.toggle()
+                    openEntry = false
+                }
+                entryView = nil
+                text = ""
+                textFieldHelper.original = ""
+                buttonNmae = state ? "magnifyingglass" : "pencil"
+                placeHolder = state ? "write your thoughts!!" : "search entry"
+                
+            }, label: {
+                Image(systemName: buttonNmae)
+                    .scaledToFit()
+                    .foregroundColor(.black)
+                    .animation(.easeIn, value: state)
+            })
+            .frame(maxHeight: 76)
+            .frame(minWidth: 76)
+            .overlay(
+                RoundedRectangle(cornerRadius: 38)
+                    .stroke(.black, lineWidth: 0.5)
+            )
+        }
+        .background(.white)
+        .cornerRadius(38)
+        .shadow(color: Color(.sRGBLinear, white: 0, opacity: 0.2), radius: 5, x: 0, y: 3)
+        .padding(.top, 20)
         .padding(.bottom, 20)
-        .padding(.top, 10)
+        .buttonStyle(ScaleButtonStyle())
     }
     
     @ViewBuilder
@@ -103,7 +153,6 @@ struct ContentView: View {
             return text
         } set: { value in
             text = value
-            originalText = value
             filter(value: value)
         }
     
@@ -112,17 +161,21 @@ struct ContentView: View {
             text: binding,
             prompt: Text(placeHolder)
                 .foregroundStyle(state ? .black.opacity(0.6) : .gray)
-                .font(.system(size: state ? 24 : 18))
+                .font(.system(size: 20))
         )
+        .focused($openKeboard)
         .padding(12)
         .disabled(state)
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: 16)
                 .stroke(!state ? Color.gray : Color.clear, lineWidth: 0.5)
         )
         .multilineTextAlignment(state ? .center : .leading)
         .animation(.snappy, value: state)
         .underline(state ,color: .black.opacity(0.6))
+        .onTapGesture {
+            openKeboard = true
+        }
     }
     
     @ViewBuilder
@@ -322,8 +375,8 @@ struct ContentView: View {
         }
         
         struct entryView: View {
-            @State var textView: TextView = TextView()
-            @State var feel: String = ""
+            @State private var textView: TextView = TextView()
+            @State private var feel: String = ""
             
             let isNew: Bool
             let entry: Entry
@@ -347,10 +400,19 @@ struct ContentView: View {
                 PersistenceController.shared.save(text: textView.text, feel: textView.feel, date: entry.time)
             }
             
-            func set(_ text: String?) {
-                guard let text else { return }
+            func set(_ transcribed: String?) {
+                guard let transcribed else { return }
+                let text = textView.original.isEmpty ? transcribed : transcribed.lowercased()
                 textView.text = textView.original + text
                 startTracking(textView.text)
+            }
+            
+            func setOrignal() {
+                textView.original = textView.text
+            }
+            
+            func isFirstResponder(_ value: Bool) {
+                textView.isFirstResponder(value)
             }
             
             var body: some View {
@@ -403,6 +465,7 @@ struct ContentView: View {
                 .background {
                     Image("page")
                         .resizable()
+                        .scaledToFill()
                 }
             }
         }
@@ -475,7 +538,12 @@ struct ContentView: View {
         }
         
         var original: String {
-            return textView.original
+            get {
+                return textView.original
+            }
+            set {
+                textView.original = newValue
+            }
         }
         
         func makeUIView(context: Context) -> UITextView {
@@ -493,6 +561,15 @@ struct ContentView: View {
         func editable(_ value: Bool) -> TextView {
             textView.isEditable = value
             return self
+        }
+        
+        func isFirstResponder(_ value: Bool) {
+            if value {
+                textView.becomeFirstResponder()
+            }
+            else {
+                textView.resignFirstResponder()
+            }
         }
         
         func updateUIView(_ uiView: UITextView, context: Context) { }
