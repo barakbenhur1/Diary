@@ -28,7 +28,7 @@ struct ContentView: View {
     
     @FocusState private var openKeboard: Bool
     
-    @State private var currentView: diaryView.entryView?
+    @State private var currentView: entryView?
     
     var body: some View {
         VStack(alignment: .leading, content: {
@@ -84,7 +84,7 @@ struct ContentView: View {
         })
         .padding(.all, 20)
         .padding(.bottom, 20)
-        .background(.teal.opacity(0.6))
+        .background(.white)
         .onTapGesture {
             openKeboard = false
             currentView?.isFirstResponder(false)
@@ -111,7 +111,7 @@ struct ContentView: View {
                 .scaleEffect(configuration.isPressed ? 1.1 : 1)
         }
     }
-
+    
     @ViewBuilder
     var stateButton: some View {
         ZStack {
@@ -155,7 +155,7 @@ struct ContentView: View {
             text = value
             filter(value: value)
         }
-    
+        
         TextField(
             "",
             text: binding,
@@ -170,6 +170,7 @@ struct ContentView: View {
             RoundedRectangle(cornerRadius: 16)
                 .stroke(!state ? Color.gray : Color.clear, lineWidth: 0.5)
         )
+        .foregroundStyle(.black)
         .multilineTextAlignment(state ? .center : .leading)
         .animation(.snappy, value: state)
         .underline(state ,color: .black.opacity(0.6))
@@ -180,6 +181,7 @@ struct ContentView: View {
     
     @ViewBuilder
     var animatbleView: some View {
+        @State var disabled: Bool = true
         @State var searchList = searchList(items: itemsToShow) {
             filter(value: text)
         } show: { entry in
@@ -197,28 +199,31 @@ struct ContentView: View {
         
         if openEntry {
             if let entryView = entryView {
-                entryView.transition(.move(edge: .bottom))
+                entryView
+                    .transition(.move(edge: .bottom))
             }
         }
         else if state {
-            diaryView { current in
-                currentView = current
-            } dismiss: {
+            diaryView {
                 withAnimation(.linear(duration: 0.4)) {
                     state = false
                 }
+            } currentBlock: { current in
+                currentView = current
             }
             .transition(.move(edge: .bottom))
         }
         else {
             if items.isEmpty {
                 Text("no entries")
+                    .foregroundStyle(.black)
                     .font(.largeTitle)
                     .frame(maxWidth: .infinity)
                     .frame(maxHeight: .infinity)
             }
             else if itemsToShow.isEmpty {
                 Text("no results")
+                    .foregroundStyle(.black)
                     .font(.largeTitle)
                     .frame(maxWidth: .infinity)
                     .frame(maxHeight: .infinity)
@@ -234,345 +239,402 @@ struct ContentView: View {
             }
         }
     }
-    
-    struct diaryView: View {
-        @State private var disabled: Bool
-        @State private var enrtriesPager: enrtriesView
-        @State private var currentView: entryView?
-        
-        private var setCurrentView: (entryView) -> () = { _ in }
+}
 
-        private let showSave: Bool
+struct diaryView: View {
+    @State private var disabled: Bool
+    
+    @State  private var currentView: entryView?
+    
+    private var setCurrentView: (entryView) -> () = { _ in }
+    
+    private var isNew: Bool
+    
+    private var current: Int
+    
+    private let entries: [Entry]
+    
+    private let showSave: Bool
+    
+    private var save: () -> ()
+    
+    init(items: [EntryItem], selected: EntryItem) {
+        showSave = false
+        isNew = false
+        let selected = Entry(time: selected.time!, text: selected.text!, feel: selected.feel!)
+        save = {}
+        _disabled = State(initialValue: selected.text.isEmpty)
         
-        private var save: () -> ()
+        entries = items.map { Entry(time: $0.time!, text: $0.text!, feel: $0.feel!) }
+            .sorted(by: { entry1, entry2 in
+                return entry1.time > entry2.time
+            })
         
-        init(items: [EntryItem], selected: EntryItem) {
-            showSave = false
-            let selected = Entry(time: selected.time!, text: selected.text!, feel: selected.feel!)
-            save = {}
-            _disabled = State(initialValue: selected.text.isEmpty)
+        current = entries.firstIndex(of: selected)!
+    }
+    
+    init(dismiss: @escaping () -> (), currentBlock: @escaping (entryView) -> ()) {
+        showSave = true
+        isNew = true
+        save = dismiss
+        current = 0
+        entries = [Entry(time: Date.now, text: "", feel: "")]
+        setCurrentView = currentBlock
+        _disabled = State(initialValue: true)
+    }
+    
+    var body: some View {
+        VStack {
+            let ev = enrtriesView(current: current, entries: entries, track: { text in
+                disabled = text.isEmpty
+            }, setCurrentView: { current in
+                currentView = current
+                setCurrentView(current)
+            }, isNew: isNew)
             
-            let entries = items.map { Entry(time: $0.time!, text: $0.text!, feel: $0.feel!) }
-                .sorted(by: { entry1, entry2 in
-                    return entry1.time > entry2.time
-                })
-            
-            let current = entries.firstIndex(of: selected) ?? 0
-            
-            _enrtriesPager = State(wrappedValue: enrtriesView(current: current, entries: entries, isNew: false))
-        }
-        
-        init(currentBlock: @escaping (entryView) -> (), dismiss: @escaping () -> ()) {
-            showSave = true
-            let selected = Entry(time:  Date.now, text: "", feel: "")
-            save = dismiss
-            setCurrentView = currentBlock
-            _disabled = State(initialValue: true)
-            
-            _enrtriesPager = State(wrappedValue: enrtriesView(current: 0, entries: [selected], isNew: true))
-        }
-        
-        var body: some View {
-            VStack {
-                enrtriesPager
-                    .padding(.top, 10)
-                    .padding(.bottom, 20)
-                    .padding(.leading, 2)
-                    .padding(.trailing, 20)
-                    .onAppear(
-                        perform: {
-                            enrtriesPager
-                                .startTracking { text in
-                                    disabled = text.isEmpty
-                                } currentBlock: { current in
-                                    currentView = current
-                                    setCurrentView(current)
-                                }
-                            
-                        })
-                    .background {
-                        Image("back")
-                            .resizable()
-                    }
-                if showSave {
-                    Button(action: {
-                        currentView?.save()
-                        save()
-                    }, label: {
-                        Text("Save")
-                            .frame(maxWidth: .infinity)
-                    })
-                    .frame(maxWidth: 400)
-                    .frame(maxHeight: 50)
-                    .background(.orange)
-                    .foregroundStyle(disabled ? .gray : .black)
-                    .disabled(disabled)
-                    .cornerRadius(15)
-                    .padding(.top, 10)
-                }
-            }
-        }
-        
-        struct enrtriesView: View {
-            @State var current: Int
-           
-            @State var entries: [Entry] = []
-            let isNew: Bool
-            
-            var track: (String) -> () = { _ in }
-            var setCurrentView: (entryView) -> () = { _ in }
-            
-            mutating func startTracking(block: @escaping (String) -> (), currentBlock: @escaping (entryView) -> ()) {
-                track = block
-                setCurrentView = currentBlock
-            }
-            
-            var body: some View {
-                GeometryReader {
-                    let rect = $0.frame(in: .global)
-                    let minX = (rect.minX - 50) < 0 ? (rect.minX - 50) : -(rect.minX - 50)
-                    let progress = (minX) / rect.width
-                    
-                    TabView(selection: $current) {
-                        ForEach(entries, id: \.self) { entry in
-                            var ev = entryView(isNew: isNew, entry: entry)
-                            
-                            ev.startTracking { text in
-                                track(text)
-                            }
-                            .tag(entries.firstIndex(of: entry)!)
-                            .onAppear(
-                                perform: {
-                                    setCurrentView(ev)
-                                }
-                            )
-                            .rotation3DEffect(
-                                .init(degrees: -2), axis: (x:0, y: 1, z: 0), anchor: .leading, perspective: 1)
-                            .modifier(CustomProjection(value: 1+(-progress < 1 ? progress : -1.0)))
-                        }
-                    }
-                    .tabViewStyle(.page(indexDisplayMode: isNew ? .never : .always))
-                }
-            }
-        }
-        
-        struct CustomProjection: GeometryEffect{
-            var value: CGFloat
-            
-            var animatableData: CGFloat{
-                get{
-                    return value
-                }
-                set{
-                    value = newValue
-                }
-            }
-            func effectValue(size: CGSize) -> ProjectionTransform {
-                var transform = CATransform3DIdentity
-                transform.m11 = (value == 0 ? 0.0001 : value)
-                return .init(transform)
-            }
-        }
-        
-        struct entryView: View {
-            @State private var textView: TextView = TextView()
-            @State private var feel: String = ""
-            
-            let isNew: Bool
-            let entry: Entry
-            
-            var startTracking: (String) -> () = { _ in }
-            
-            let feels: [String] = ["😀", "😞", "😭", "😡", "😨"]
-            
-            mutating func startTracking(block: @escaping (String) -> ()) -> entryView  {
-                textView.text = entry.text
-                startTracking = block
-                textView
-                    .setUpdateUIView { text in
-                        block(text)
-                    }
-                
-                return self
-            }
-            
-            func save() {
-                PersistenceController.shared.save(text: textView.text, feel: textView.feel, date: entry.time)
-            }
-            
-            func set(_ transcribed: String?) {
-                guard let transcribed else { return }
-                let text = textView.original.isEmpty ? transcribed : transcribed.lowercased()
-                textView.text = textView.original + text
-                startTracking(textView.text)
-            }
-            
-            func setOrignal() {
-                textView.original = textView.text
-            }
-            
-            func isFirstResponder(_ value: Bool) {
-                textView.isFirstResponder(value)
-            }
-            
-            var body: some View {
-                VStack {
-                    Text("Entry for \n\(entry.time, format: .dateTime.day().month().year().hour().minute().second())")
-                        .foregroundStyle(.orange)
-                        .font(.system(size: 20))
-                        .bold()
-                        .multilineTextAlignment(.center)
-                        .underline(true)
-                        .bold()
-                    
-                    HStack {
-                        Text("How \(isNew ? "do" : "did") you feel?")
-                            .multilineTextAlignment(.leading)
-                            .foregroundStyle(.black)
-                            .lineLimit(1)
-                            .font(.system(size: 13.2))
-                            .bold()
-                        Menu {
-                            ForEach(feels, id: \.self) { f in
-                                Button(action: {
-                                    textView.feel = f
-                                    feel = f
-                                }, label: {
-                                    Text(f)
-                                        .multilineTextAlignment(.center)
-                                })
-                            }
-                        } label: {
-                            let feel = entry.feel.isEmpty ? feel :  entry.feel
-                            Text(feel.isEmpty ? "if empty ai will fill for you" : feel)
-                                .multilineTextAlignment(.leading)
-                                .lineLimit(1)
-                                .font(.system(size: 13.2))
-                                .foregroundStyle(.gray)
-                                .opacity(feel.isEmpty ? 0.4 : 0.8)
-                                .bold()
-                        }
-                        .disabled(!isNew)
-                        Spacer()
-                    }
-                    .padding(.top, 5)
-                    .padding(.leading, 4)
-                    textView
-                        .editable(isNew)
-                }
-                .padding(.leading, 26)
-                .padding(.trailing, 26)
-                .background {
-                    Image("page")
+            ev
+            .padding(.top, 10)
+            .padding(.bottom, 20)
+            .padding(.leading, 2)
+            .padding(.trailing, isNew ? 20 : 42)
+            .background {
+                if !isNew {
+                    Image("back")
                         .resizable()
-                        .scaledToFill()
                 }
+            }
+            
+            if showSave {
+                Button(action: {
+                    currentView?.save()
+                    save()
+                }, label: {
+                    Text("Save")
+                        .frame(maxWidth: .infinity)
+                })
+                .frame(maxWidth: 400)
+                .frame(maxHeight: 50)
+                .background(.orange)
+                .foregroundStyle(disabled ? .gray : .black)
+                .disabled(disabled)
+                .cornerRadius(15)
+                .padding(.top, 10)
             }
         }
     }
+}
+
+struct searchList: View {
+    var items: [EntryItem] = []
+    var remove: () -> ()
+    var show: (_ item: EntryItem) -> ()
     
-    struct searchList: View {
-        var items: [EntryItem] = []
-        var remove: () -> ()
-        var show: (_ item: EntryItem) -> ()
-        
-        var body: some View {
-            List {
-                ForEach(items, id: \.self) { item in
-                    VStack(alignment: .leading, content: {
-                        Text(item.time ?? Date.now, format: .dateTime.day().month().year().hour().minute().second())
+    var body: some View {
+        List {
+            ForEach(items, id: \.self) { item in
+                VStack(alignment: .leading, content: {
+                    Text(item.time ?? Date.now, format: .dateTime.day().month().year().hour().minute().second())
+                        .multilineTextAlignment(.leading)
+                        .foregroundStyle(.gray)
+                        .padding(.bottom, 8)
+                    HStack {
+                        Text(item.text ?? "no text")
                             .multilineTextAlignment(.leading)
-                            .foregroundStyle(.secondary)
-                            .padding(.bottom, 8)
-                        HStack {
-                            Text(item.text ?? "no text")
-                                .multilineTextAlignment(.leading)
-                                .lineLimit(2, reservesSpace: false)
-                            Spacer()
-                            Text(item.feel ?? "no feel")
-                        }
+                            .lineLimit(2, reservesSpace: false)
+                            .foregroundStyle(.black)
+                        Spacer()
+                        Text(item.feel ?? "no feel")
+                    }
+                })
+                .listRowBackground(Color.clear)
+                .padding(.bottom, 4)
+                .swipeActions {
+                    Button(action: {
+                        PersistenceController.shared.delete(item: item)
+                        remove()
+                    }, label: {
+                        Text("delete")
                     })
-                    .listRowBackground(Color.clear)
-                    .padding(.bottom, 4)
-                    .swipeActions {
+                }
+                .onTapGesture {
+                    show(item)
+                }
+            }
+        }
+        .frame( maxWidth: .infinity)
+        .edgesIgnoringSafeArea(.all)
+        .listStyle(GroupedListStyle())
+        .scrollIndicators(.hidden)
+        .background(.clear)
+        .scrollContentBackground(.hidden)
+    }
+}
+
+struct enrtriesView: View {
+    @State var current: Int = 0
+    
+    @State private var isFlippingForward = true
+    
+    @State var entries: [Entry] = []
+    
+    private let flipAmount = 360
+    
+    @State var track: (String) -> ()
+    @State var setCurrentView: (entryView) -> ()
+    
+    let isNew: Bool
+    
+    func startTracking(block: @escaping (String) -> (), currentBlock: @escaping (entryView) -> ()) {
+        track = block
+        setCurrentView = currentBlock
+    }
+    
+    var body: some View {
+        if isNew {
+            TabView(selection: $current) {
+                ForEach(entries, id: \.self) { entry in
+                    let ev = entryView(isNew: isNew, entry: entry, block: { text in
+                        track(text)
+                    })
+                    
+                    ev
+                    .tag(entries.firstIndex(of: entry)!)
+                    .onAppear {
+                        setCurrentView(ev)
+                    }
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+        }
+        else {
+            VStack {
+                GeometryReader { geometry in
+                    ZStack {
+                        ForEach(entries, id: \.self) { entry in
+                            let ev = entryView(isNew: isNew, entry: entry, block: { text in
+                                track(text)
+                            })
+                            
+                            ev
+                                .tag(entries.firstIndex(of: entry)!)
+                                .frame(width: geometry.size.width, height: geometry.size.height)
+                                .rotation3DEffect(
+                                    .degrees(Double(current == entries.firstIndex(of: entry) ? 0 : isFlippingForward ? -flipAmount : flipAmount)),
+                                    axis: (x: 0, y: 1, z: 0),
+                                    anchor: .leading,
+                                    anchorZ: 0,
+                                    perspective: 0.3
+                                )
+                                .opacity(current == entries.firstIndex(of: entry) ? 1 : 0)
+                        }
+                    }
+                    .clipped()
+                    .gesture(
+                        DragGesture().onEnded { gesture in
+                            let horizontalMove = gesture.translation.width
+                            let verticalMove = gesture.translation.height
+                            
+                            if abs(horizontalMove) > abs(verticalMove) {
+                                if horizontalMove < 0 && current < entries.count - 1 {
+                                    isFlippingForward = true
+                                    withAnimation(.linear(duration: 0.3)) {
+                                        current += 1
+                                    }
+                                } else if horizontalMove > 0 && current > 0 {
+                                    isFlippingForward = false
+                                    withAnimation(.linear(duration: 0.3)) {
+                                        current -= 1
+                                    }
+                                }
+                            }
+                        }
+                    )
+                }
+                Text("Page \(current + 1) / \(entries.count)")
+                    .foregroundStyle(.black)
+                    .padding(.bottom, 5)
+            }
+        }
+    }
+}
+
+struct entryView: View {
+    @State private var textView: TextView
+    @State private var feel: String
+    
+    let isNew: Bool
+    let entry: Entry
+    
+    var startTracking: (String) -> () = { _ in }
+    
+    private let feels: [String] = ["😀", "😞", "😭", "😡", "😨"]
+    
+    init(isNew: Bool, entry: Entry, block: @escaping (String) -> ()) {
+        self.isNew = isNew
+        self.entry = entry
+        _textView = State(initialValue: TextView(text: entry.text, feel: ""))
+        _feel = State(initialValue: "")
+        
+        startTracking = block
+        textView
+            .setUpdateUIView { text in
+                block(text)
+            }
+    }
+    
+    func save() {
+        PersistenceController.shared.save(text: textView.text, feel: textView.feel, date: entry.time)
+    }
+    
+    func set(_ transcribed: String?) {
+        guard let transcribed else { return }
+        let text = textView.original.isEmpty ? transcribed : transcribed.lowercased()
+        textView.text = textView.original + text
+        startTracking(textView.text)
+    }
+    
+    func setOrignal() {
+        textView.original = textView.text
+    }
+    
+    func isFirstResponder(_ value: Bool) {
+        textView.isFirstResponder(value)
+    }
+    
+    var body: some View {
+        VStack {
+            Text("Entry for \n\(entry.time, format: .dateTime.day().month().year().hour().minute().second())")
+                .foregroundStyle(.link)
+                .font(.system(size: 20))
+                .bold()
+                .multilineTextAlignment(.center)
+                .underline(true)
+                .bold()
+                .padding(.top, 5)
+            
+            HStack {
+                Text("How \(isNew ? "do" : "did") you feel?")
+                    .multilineTextAlignment(.leading)
+                    .foregroundStyle(.black)
+                    .lineLimit(1)
+                    .font(.system(size: 13.2))
+                    .bold()
+                Menu {
+                    ForEach(feels, id: \.self) { f in
                         Button(action: {
-                            PersistenceController.shared.delete(item: item)
-                            remove()
+                            textView.feel = f
+                            feel = f
                         }, label: {
-                            Text("delete")
+                            Text(f)
+                                .multilineTextAlignment(.center)
                         })
                     }
-                    .onTapGesture {
-                        show(item)
-                    }
+                } label: {
+                    let feel = entry.feel.isEmpty ? feel :  entry.feel
+                    Text(feel.isEmpty ? "if empty ai will fill for you" : feel)
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(1)
+                        .font(.system(size: 13.2))
+                        .foregroundStyle(.gray)
+                        .opacity(feel.isEmpty ? 0.4 : 0.8)
+                        .bold()
                 }
+                .disabled(!isNew)
+                Spacer()
             }
-            .frame( maxWidth: .infinity)
-            .edgesIgnoringSafeArea(.all)
-            .listStyle(GroupedListStyle())
-            .scrollIndicators(.hidden)
-            .background(.clear)
-            .scrollContentBackground(.hidden)
+            .padding(.top, 5)
+            .padding(.leading, 4)
+            Text("Your Day")
+                .foregroundStyle(.black)
+                .font(.system(size: 10))
+                .padding(.top, 20)
+            textView
+                .editable(isNew)
+        }
+        .padding(.leading, 26)
+        .padding(.trailing, 26)
+    }
+}
+
+struct TextView: UIViewRepresentable {
+    private let textView = MyTextView(placeHolder: "Start here ....")
+    
+    var feel: String {
+        set {
+            textView.feel = newValue
+        }
+        get {
+            return textView.feel
         }
     }
     
-    struct TextView: UIViewRepresentable {
-        private let textView = MyTextView(placeHolder: "Start here ....")
-        
-        var feel: String {
-            set {
-                textView.feel = newValue
-            }
-            get {
-                return textView.feel
-            }
+    var text: String {
+        get {
+            return textView.text
         }
-        
-        var text: String {
-            get {
-                return textView.text
-            }
-            set {
-                textView.set(string: newValue)
-            }
+        set {
+            textView.set(string: newValue)
         }
-        
-        var original: String {
-            get {
-                return textView.original
+    }
+    
+    var original: String {
+        get {
+            return textView.original
+        }
+        set {
+            textView.original = newValue
+        }
+    }
+    
+    init(text: String, feel: String) {
+        self.text = text
+        self.feel = feel
+    }
+    
+    func makeUIView(context: Context) -> UITextView {
+        textView.textColor = .black
+        return textView
+    }
+    
+    mutating func setUpdateUIView(updateUIView: @escaping (String) -> ()) {
+        textView
+            .textViewDidChange { text in
+                updateUIView(text)
             }
-            set {
-                textView.original = newValue
-            }
+    }
+    
+    func editable(_ value: Bool) -> TextView {
+        textView.isEditable = value
+        return self
+    }
+    
+    func isFirstResponder(_ value: Bool) {
+        if value {
+            textView.becomeFirstResponder()
         }
-        
-        func makeUIView(context: Context) -> UITextView {
-            textView.textColor = .black
-            return textView
+        else {
+            textView.resignFirstResponder()
         }
-        
-        mutating func setUpdateUIView(updateUIView: @escaping (String) -> ()) {
-            textView
-                .textViewDidChange { text in
-                    updateUIView(text)
-                }
-        }
-        
-        func editable(_ value: Bool) -> TextView {
-            textView.isEditable = value
-            return self
-        }
-        
-        func isFirstResponder(_ value: Bool) {
-            if value {
-                textView.becomeFirstResponder()
-            }
-            else {
-                textView.resignFirstResponder()
-            }
-        }
-        
-        func updateUIView(_ uiView: UITextView, context: Context) { }
+    }
+    
+    func updateUIView(_ uiView: UITextView, context: Context) { }
+}
+
+extension AnyTransition {
+    static var flip: AnyTransition {
+        .modifier(
+            active: FlipViewModifier(rotation: 180),
+            identity: FlipViewModifier(rotation: 0)
+        )
+    }
+}
+
+struct FlipViewModifier: ViewModifier {
+    let rotation: Double
+    
+    func body(content: Content) -> some View {
+        content
+            .rotation3DEffect(Angle(degrees: rotation), axis: (x: 0, y: 1, z: 0))
     }
 }
 
