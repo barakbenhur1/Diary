@@ -488,7 +488,13 @@ struct entryView: View {
     
     var startTracking: (String) -> () = { _ in }
     
-    private let feelsDict: [String: String] = ["no-emotion": "😐", "joy": "😀", "sadness": "😞", "surprise": "😯", "anger": "😡", "disgust": "🤢", "fear": "😨"]
+    private let feelsDict: [String: String] = ["no-emotion": "😐",
+                                               "joy": "😀",
+                                               "sadness": "😞",
+                                               "surprise": "😯",
+                                               "anger": "😡",
+                                               "disgust": "🤢",
+                                               "fear": "😨"]
     
     private let feels: [String]
     
