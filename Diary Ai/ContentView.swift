@@ -59,7 +59,6 @@ struct ContentView: View {
                         }
                         if state {
                             currentView?.set(transcribed)
-                            currentView?.isFirstResponder(true)
                         }
                         else {
                             let transcribed  = textFieldHelper.original.isEmpty ? transcribed : transcribed.lowercased()
@@ -71,6 +70,7 @@ struct ContentView: View {
                         stopRecording = true
                         if state {
                             currentView?.setOrignal()
+                            currentView?.isFirstResponder(true)
                         }
                         else {
                             textFieldHelper.original = text
@@ -244,7 +244,9 @@ struct ContentView: View {
 struct diaryView: View {
     @State private var disabled: Bool
     
-    @State  private var currentView: entryView?
+    @State private var currentView: entryView?
+    
+    @State private var isLoading: Bool = false
     
     private var setCurrentView: (entryView) -> () = { _ in }
     
@@ -293,21 +295,30 @@ struct diaryView: View {
             }, isNew: isNew)
             
             ev
-            .padding(.top, 10)
-            .padding(.bottom, 20)
-            .padding(.leading, 2)
-            .padding(.trailing, isNew ? 20 : 42)
-            .background {
-                if !isNew {
-                    Image("back")
-                        .resizable()
+                .padding(.top, 10)
+                .padding(.bottom, 20)
+                .padding(.leading, 2)
+                .padding(.trailing, isNew ? 20 : 42)
+                .modifier(ActivityIndicatorModifier(isLoading: isLoading))
+                .background {
+                    if !isNew {
+                        Image("back")
+                            .resizable()
+                    }
                 }
-            }
             
             if showSave {
                 Button(action: {
-                    currentView?.save()
-                    save()
+                    currentView?.isFirstResponder(false)
+                    withAnimation {
+                        isLoading = true
+                    }
+                    currentView?.save {
+                        withAnimation {
+                            isLoading = false
+                        }
+                        save()
+                    }
                 }, label: {
                     Text("Save")
                         .frame(maxWidth: .infinity)
@@ -343,7 +354,17 @@ struct searchList: View {
                             .lineLimit(2, reservesSpace: false)
                             .foregroundStyle(.black)
                         Spacer()
-                        Text(item.feel ?? "no feel")
+                        VStack {
+                            Text(item.feel ?? "no feel")
+                            if (item.additional as? [String])?.isEmpty == false {
+                                Spacer()
+                                Button {
+                                    
+                                } label: {
+                                    Text("additional")
+                                }
+                            }
+                        }
                     }
                 })
                 .listRowBackground(Color.clear)
@@ -452,7 +473,7 @@ struct enrtriesView: View {
                 }
                 Text("Page \(current + 1) / \(entries.count)")
                     .foregroundStyle(.black)
-                    .padding(.bottom, 5)
+                    .padding(.all, 10)
             }
         }
     }
@@ -467,13 +488,17 @@ struct entryView: View {
     
     var startTracking: (String) -> () = { _ in }
     
-    private let feels: [String] = ["😀", "😞", "😭", "😡", "😨"]
+    private let feelsDict: [String: String] = ["no-emotion": "😐", "joy": "😀", "sadness": "😞", "surprise": "😯", "anger": "😡", "disgust": "🤢", "fear": "😨"]
+    
+    private let feels: [String]
     
     init(isNew: Bool, entry: Entry, block: @escaping (String) -> ()) {
         self.isNew = isNew
         self.entry = entry
-        _textView = State(initialValue: TextView(text: entry.text, feel: ""))
-        _feel = State(initialValue: "")
+        _textView = State(initialValue: TextView(text: entry.text, feel: entry.feel))
+        _feel = State(initialValue: entry.feel)
+        
+        feels = feelsDict.map { $0.value }
         
         startTracking = block
         textView
@@ -482,8 +507,31 @@ struct entryView: View {
             }
     }
     
-    func save() {
-        PersistenceController.shared.save(text: textView.text, feel: textView.feel, date: entry.time)
+    func save(complete:@escaping () -> ()) {
+        let text =  textView.text
+        
+        if textView.feel.isEmpty {
+            Task {
+                let result = await Service().analyze(string: text)
+                
+                switch result {
+                case .success(let analyzed):
+                    let predictions = (analyzed.first?.predictions ?? [])
+                    var additional = predictions.map { feelsDict[$0.prediction] ?? "" }.filter { value in return !value.isEmpty }
+                    guard !additional.isEmpty else { return }
+                    let feel = additional.remove(at: 0)
+                    PersistenceController.shared.save(text: text, feel: feel , date: entry.time, additional: additional)
+                    complete()
+                case .failure(let error):
+                    complete()
+                    print(error.localizedDescription)
+                }
+            }
+        }
+        else {
+            complete()
+            PersistenceController.shared.save(text: text, feel: textView.feel , date: entry.time)
+        }
     }
     
     func set(_ transcribed: String?) {
@@ -502,57 +550,123 @@ struct entryView: View {
     }
     
     var body: some View {
-        VStack {
-            Text("Entry for \n\(entry.time, format: .dateTime.day().month().year().hour().minute().second())")
-                .foregroundStyle(.link)
-                .font(.system(size: 20))
-                .bold()
-                .multilineTextAlignment(.center)
-                .underline(true)
-                .bold()
-                .padding(.top, 5)
-            
-            HStack {
-                Text("How \(isNew ? "do" : "did") you feel?")
-                    .multilineTextAlignment(.leading)
-                    .foregroundStyle(.black)
-                    .lineLimit(1)
-                    .font(.system(size: 13.2))
+        ZStack {
+            VStack {
+                Text("Entry for \n\(entry.time, format: .dateTime.day().month().year().hour().minute().second())")
+                    .foregroundStyle(.link)
+                    .font(.system(size: 20))
                     .bold()
-                Menu {
-                    ForEach(feels, id: \.self) { f in
-                        Button(action: {
-                            textView.feel = f
-                            feel = f
-                        }, label: {
-                            Text(f)
-                                .multilineTextAlignment(.center)
-                        })
-                    }
-                } label: {
-                    let feel = entry.feel.isEmpty ? feel :  entry.feel
-                    Text(feel.isEmpty ? "if empty ai will fill for you" : feel)
+                    .multilineTextAlignment(.center)
+                    .underline(true)
+                    .bold()
+                    .padding(.top, 5)
+                
+                HStack {
+                    Text("How \(isNew ? "do" : "did") you feel?")
                         .multilineTextAlignment(.leading)
+                        .foregroundStyle(.black)
                         .lineLimit(1)
                         .font(.system(size: 13.2))
-                        .foregroundStyle(.gray)
-                        .opacity(feel.isEmpty ? 0.4 : 0.8)
                         .bold()
+                    Menu {
+                        ForEach(feels, id: \.self) { f in
+                            Button(action: {
+                                textView.feel = f
+                                feel = f
+                            }, label: {
+                                Text(f)
+                                    .multilineTextAlignment(.center)
+                            })
+                        }
+                    } label: {
+                        let feel = entry.feel.isEmpty ? feel :  entry.feel
+                        Text(feel.isEmpty ? "if empty ai will fill for you" : feel)
+                            .multilineTextAlignment(.leading)
+                            .lineLimit(1)
+                            .font(.system(size: 13.2))
+                            .foregroundStyle(.gray)
+                            .opacity(feel.isEmpty ? 0.4 : 0.8)
+                            .background(.clear)
+                            .bold()
+                    }
+                    .disabled(!isNew)
                 }
-                .disabled(!isNew)
-                Spacer()
+                .padding(.top, 5)
+                .padding(.leading, 4)
+                Text("Your Day")
+                    .foregroundStyle(.black)
+                    .font(.system(size: 10))
+                    .padding(.top, 20)
+                if isNew {
+                    textView
+                        .editable(isNew)
+                }
+                else {
+                    ScrollView(.vertical) {
+                        Text(entry.text)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .foregroundStyle(.black)
+                    }
+                    .scrollIndicators(.hidden)
+                    .scrollBounceBehavior(.basedOnSize)
+                }
             }
-            .padding(.top, 5)
-            .padding(.leading, 4)
-            Text("Your Day")
-                .foregroundStyle(.black)
-                .font(.system(size: 10))
-                .padding(.top, 20)
-            textView
-                .editable(isNew)
+            .padding(.leading, 26)
+            .padding(.trailing, 26)
         }
-        .padding(.leading, 26)
-        .padding(.trailing, 26)
+    }
+}
+
+struct ActivityIndicator: UIViewRepresentable {
+    @Binding var isAnimating: Bool
+    let style: UIActivityIndicatorView.Style
+
+    func makeUIView(context: UIViewRepresentableContext<ActivityIndicator>) -> UIActivityIndicatorView {
+        return UIActivityIndicatorView(style: style)
+    }
+
+    func updateUIView(_ uiView: UIActivityIndicatorView, context: UIViewRepresentableContext<ActivityIndicator>) {
+        isAnimating ? uiView.startAnimating() : uiView.stopAnimating()
+    }
+}
+
+struct ActivityIndicatorModifier: AnimatableModifier {
+    var isLoading: Bool
+
+    init(isLoading: Bool, color: Color = .primary, lineWidth: CGFloat = 3) {
+        self.isLoading = isLoading
+    }
+
+    var animatableData: Bool {
+        get { isLoading }
+        set { isLoading = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        ZStack {
+            if isLoading {
+                GeometryReader { geometry in
+                    ZStack(alignment: .center) {
+                        content
+                            .disabled(self.isLoading)
+                            .blur(radius: self.isLoading ? 3 : 0)
+
+                        VStack {
+                            ActivityIndicator(isAnimating: .constant(true), style: .large)
+                        }
+                        .frame(width: geometry.size.width / 2,
+                               height: geometry.size.height / 5)
+                        .background(Color.secondary.colorInvert())
+                        .foregroundColor(Color.primary)
+                        .cornerRadius(20)
+                        .opacity(self.isLoading ? 1 : 0)
+                        .position(x: geometry.frame(in: .local).midX, y: geometry.frame(in: .local).midY)
+                    }
+                }
+            } else {
+                content
+            }
+        }
     }
 }
 
@@ -618,24 +732,6 @@ struct TextView: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: UITextView, context: Context) { }
-}
-
-extension AnyTransition {
-    static var flip: AnyTransition {
-        .modifier(
-            active: FlipViewModifier(rotation: 180),
-            identity: FlipViewModifier(rotation: 0)
-        )
-    }
-}
-
-struct FlipViewModifier: ViewModifier {
-    let rotation: Double
-    
-    func body(content: Content) -> some View {
-        content
-            .rotation3DEffect(Angle(degrees: rotation), axis: (x: 0, y: 1, z: 0))
-    }
 }
 
 #Preview {

@@ -11,4 +11,5 @@ struct Entry: Hashable {
     let time: Date
     let text: String
     let feel: String
+    var additional: [String] = []
 }

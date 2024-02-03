@@ -28,12 +28,13 @@ struct PersistenceController {
         return result
     }()
     
-    func save(text: String, feel: String, date: Date) {
+    func save(text: String, feel: String, date: Date, additional: [String] = []) {
         let context = container.viewContext
         let entry = EntryItem(context: context)
         entry.time = date
         entry.text = text
         entry.feel = feel
+        entry.additional = additional as NSObject
         
         if context.hasChanges {
             do {

@@ -10,7 +10,6 @@
 		1F52EE6E14F6199BEE763491 /* Pods_Diary_Ai.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D167D63A7786E24DE193E2FE /* Pods_Diary_Ai.framework */; };
 		2723435B500F13077B294DA9 /* Pods_Diary_Ai_Diary_AiUITests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8D0A62D7548141CBCB29850A /* Pods_Diary_Ai_Diary_AiUITests.framework */; };
 		4F3598842B67E90700A37064 /* Entry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F3598832B67E90700A37064 /* Entry.swift */; };
-		4F4C1F272B6A5E77000C8DAC /* KeyboardHeightHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F4C1F262B6A5E77000C8DAC /* KeyboardHeightHelper.swift */; };
 		4F5F67442B66F2C700034375 /* Diary_AiApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F5F67432B66F2C700034375 /* Diary_AiApp.swift */; };
 		4F5F67462B66F2C700034375 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F5F67452B66F2C700034375 /* ContentView.swift */; };
 		4F5F67482B66F2CA00034375 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4F5F67472B66F2CA00034375 /* Assets.xcassets */; };
@@ -21,6 +20,8 @@
 		4F5F67662B66F2CA00034375 /* Diary_AiUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F5F67652B66F2CA00034375 /* Diary_AiUITests.swift */; };
 		4F5F67682B66F2CA00034375 /* Diary_AiUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F5F67672B66F2CA00034375 /* Diary_AiUITestsLaunchTests.swift */; };
 		4F5F67772B66F41500034375 /* MyTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F5F67762B66F41500034375 /* MyTextView.swift */; };
+		4F8A39972B6E540000E8DCC3 /* Service.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F8A39962B6E540000E8DCC3 /* Service.swift */; };
+		4F8A39992B6E553000E8DCC3 /* KeyboardHeightHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F8A39982B6E553000E8DCC3 /* KeyboardHeightHelper.swift */; };
 		78A141BFE7E7238620147095 /* Pods_Diary_AiTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C4B23C6EF799EDCB0CC25E7 /* Pods_Diary_AiTests.framework */; };
 /* End PBXBuildFile section */
 
@@ -45,7 +46,6 @@
 		3C4B23C6EF799EDCB0CC25E7 /* Pods_Diary_AiTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Diary_AiTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		3F4DE4EE4C71469086F2287E /* Pods-Diary AiTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Diary AiTests.debug.xcconfig"; path = "Target Support Files/Pods-Diary AiTests/Pods-Diary AiTests.debug.xcconfig"; sourceTree = "<group>"; };
 		4F3598832B67E90700A37064 /* Entry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Entry.swift; sourceTree = "<group>"; };
-		4F4C1F262B6A5E77000C8DAC /* KeyboardHeightHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardHeightHelper.swift; sourceTree = "<group>"; };
 		4F5F67402B66F2C700034375 /* Diary Ai.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Diary Ai.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		4F5F67432B66F2C700034375 /* Diary_AiApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Diary_AiApp.swift; sourceTree = "<group>"; };
 		4F5F67452B66F2C700034375 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -61,6 +61,8 @@
 		4F5F67652B66F2CA00034375 /* Diary_AiUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Diary_AiUITests.swift; sourceTree = "<group>"; };
 		4F5F67672B66F2CA00034375 /* Diary_AiUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Diary_AiUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		4F5F67762B66F41500034375 /* MyTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyTextView.swift; sourceTree = "<group>"; };
+		4F8A39962B6E540000E8DCC3 /* Service.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Service.swift; sourceTree = "<group>"; };
+		4F8A39982B6E553000E8DCC3 /* KeyboardHeightHelper.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = KeyboardHeightHelper.swift; sourceTree = "<group>"; };
 		58555EE5D2C297E7EB54342C /* Pods-Diary Ai-Diary AiUITests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Diary Ai-Diary AiUITests.debug.xcconfig"; path = "Target Support Files/Pods-Diary Ai-Diary AiUITests/Pods-Diary Ai-Diary AiUITests.debug.xcconfig"; sourceTree = "<group>"; };
 		8460B4D21AC55A86620579FC /* Pods-Diary AiTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Diary AiTests.release.xcconfig"; path = "Target Support Files/Pods-Diary AiTests/Pods-Diary AiTests.release.xcconfig"; sourceTree = "<group>"; };
 		8D0A62D7548141CBCB29850A /* Pods_Diary_Ai_Diary_AiUITests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Diary_Ai_Diary_AiUITests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -136,17 +138,18 @@
 		4F5F67422B66F2C700034375 /* Diary Ai */ = {
 			isa = PBXGroup;
 			children = (
+				4F8A39982B6E553000E8DCC3 /* KeyboardHeightHelper.swift */,
 				4F5F67432B66F2C700034375 /* Diary_AiApp.swift */,
 				4F5F67452B66F2C700034375 /* ContentView.swift */,
 				4F5F67762B66F41500034375 /* MyTextView.swift */,
 				4F3598832B67E90700A37064 /* Entry.swift */,
+				4F8A39962B6E540000E8DCC3 /* Service.swift */,
 				4F5F67472B66F2CA00034375 /* Assets.xcassets */,
 				4F5F674C2B66F2CA00034375 /* Persistence.swift */,
 				4F5F67512B66F2CA00034375 /* Diary_Ai.entitlements */,
 				4F5F67522B66F2CA00034375 /* Info.plist */,
 				4F5F674E2B66F2CA00034375 /* Diary_Ai.xcdatamodeld */,
 				4F5F67492B66F2CA00034375 /* Preview Content */,
-				4F4C1F262B6A5E77000C8DAC /* KeyboardHeightHelper.swift */,
 			);
 			path = "Diary Ai";
 			sourceTree = "<group>";
@@ -425,12 +428,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				4F3598842B67E90700A37064 /* Entry.swift in Sources */,
+				4F8A39972B6E540000E8DCC3 /* Service.swift in Sources */,
 				4F5F674D2B66F2CA00034375 /* Persistence.swift in Sources */,
 				4F5F67462B66F2C700034375 /* ContentView.swift in Sources */,
 				4F5F67442B66F2C700034375 /* Diary_AiApp.swift in Sources */,
-				4F4C1F272B6A5E77000C8DAC /* KeyboardHeightHelper.swift in Sources */,
 				4F5F67502B66F2CA00034375 /* Diary_Ai.xcdatamodeld in Sources */,
 				4F5F67772B66F41500034375 /* MyTextView.swift in Sources */,
+				4F8A39992B6E553000E8DCC3 /* KeyboardHeightHelper.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
